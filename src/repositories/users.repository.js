@@ -34,6 +34,14 @@ class UsersRepository {
 
     }
 
+    findByFirebaseUID(firebaseUID) {
+
+        return prisma.users.findUnique({
+            where: { firebaseUID },
+        });
+
+    }
+
     findAll() {
 
         return prisma.users.findMany();

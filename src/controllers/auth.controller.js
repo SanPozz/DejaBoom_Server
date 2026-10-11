@@ -1,105 +1,53 @@
-import { comparePasswordRegister } from '../utils/comparePasswordRegister.util.js';
 import { regexEmail } from '../utils/regexEmail.util.js';
-import { regexPassword } from '../utils/regexPassword.util.js';
 
 import TokenService from '../services/token.service.js';
-
-import PasswordHashService from '../services/passwordHash.service.js';
 
 import UsersRepository from '../repositories/users.repository.js';
 
 class AuthController {
-    
-    static async login(req, res) {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).send('Todos los campos son requeridos');
-        }
-
-        const userRepository = new UsersRepository();
-        const user = await userRepository.findByEmail(email);
-
-        if (!user) {
-            return res.status(404).send('No esxiste ninguna cuenta registrada con ese correo electrónico');
-        }
-
-        const isPasswordValid = await PasswordHashService.comparePassword(password, user.password);
-
-        if (!isPasswordValid) {
-            return res.status(401).send('Credenciales inválidas');
-        }
-
-        const token = TokenService.generateAccessToken(user.id);
-
-        res.cookie('access_token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 3600000 // 1 hour
-        });
-
-        return res.status(200).json({
-            user: {
-                id: user.id,
-                nickname: user.nickname,
-                email: user.email
-            },
-            access_token: token
-        });
-
-    }
 
     static async register(req, res) {
-        const { username, password, email, confirmPassword} = req.body;
+        const username = req.body.username;
+        const { uid: firebaseUID, email } = req.firebaseUser;
 
-        if (!username || !password || !email || !confirmPassword) {
-            return res.status(400).send('Todos los campos son requeridos');
+        if (!username) {
+            return res.status(400).send('El nombre de usuario es requerido');
         }
 
-        if (!comparePasswordRegister(password, confirmPassword)) {
-            return res.status(400).send('Las contraseñas no coinciden');
-        }
-
-        if (!regexEmail(email)) {
+        if (!email || !regexEmail(email)) {
             return res.status(400).send('El correo electrónico no es válido');
-        }
-
-        if (!regexPassword(password)) {
-            return res.status(400).send('La contraseña no cumple con los requisitos');
         }
 
         try {
 
             const userRepository = new UsersRepository();
 
-            const hashedPassword = await PasswordHashService.hashPassword(password);
-
             const newUser = await userRepository.save({
                 nickname: username,
-                password: hashedPassword,
+                firebaseUID,
                 email,
             });
 
-            return res.status(201).json(newUser);
+            return res.status(200).json(newUser);
             
         } catch (error) {
+            console.error('Error al registrar el usuario:', error);
+
+            if (error.code === 'P2002') {
+                return res.status(409).send('Ya existe un usuario con ese correo, UID o nombre de usuario');
+            }
+
             return res.status(500).send('Error al registrar el usuario');
         }
         
     }
 
     static async getCurrentUser(req, res) {
-        const token = req.cookies.access_token;
-
-        if (!token) {
-            return res.status(401).send('No autenticado');
-        }
+        const firebaseUser = req.firebaseUser;
 
         try {
-            const decoded = TokenService.verifyToken(token);
             const userRepository = new UsersRepository();
-            const user = await userRepository.findById(decoded.id);
+            const user = await userRepository.findByFirebaseUID(firebaseUser.uid);
 
             if (!user) {
                 return res.status(404).send('Usuario no encontrado');

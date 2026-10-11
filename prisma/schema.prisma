@@ -14,9 +14,9 @@ datasource db {
 
 model Users {
   id        Int      @id @default(autoincrement())
+  firebaseUID String   @unique
   email     String   @unique
   nickname String @unique
-  password  String
   profilePicture String?
   profileBanner String?
   bio       String?

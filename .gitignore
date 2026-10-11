@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 
+
 # Environment variables and local secrets
 .env
 .env.*
@@ -30,3 +31,5 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+*-firebase-adminsdk-*.json

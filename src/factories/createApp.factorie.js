@@ -8,7 +8,7 @@ const createApp = () => {
     const app = express();
 
     app.use(cors({
-        origin: ['https://dejaboomdemo.vercel.app', 'http://localhost:5175'],
+        origin: ['https://dejaboomdemo.vercel.app', 'http://localhost:5175', 'http://localhost:5173' ],
         credentials: true,
     }));
 
