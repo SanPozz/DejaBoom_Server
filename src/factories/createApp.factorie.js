@@ -2,26 +2,32 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
-import authRoutes from '../routes/auth.routes.js'; 
+import authRoutes from '../routes/auth.routes.js';
 
 const createApp = () => {
-    const app = express();
+  const app = express();
 
-    app.use(cors({
-        origin: ['https://dejaboomdemo.vercel.app', 'http://localhost:5175', 'http://localhost:5173' ],
-        credentials: true,
-    }));
+  app.use(
+    cors({
+      origin: [
+        'https://dejaboomdemo.vercel.app',
+        'http://localhost:5175',
+        'http://localhost:5173',
+      ],
+      credentials: true,
+    }),
+  );
 
-    app.use(express.json());
-    app.use(cookieParser());
-    
-    app.get('/', (req, res) => {
-        res.send('Hello, world!');
-    });
+  app.use(express.json());
+  app.use(cookieParser());
 
-    app.use('/api/auth', authRoutes);
+  app.get('/', (req, res) => {
+    res.send('Hello, world!');
+  });
 
-    return app;
+  app.use('/api/auth', authRoutes);
+
+  return app;
 };
 
 export default createApp;
