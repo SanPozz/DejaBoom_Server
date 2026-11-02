@@ -1,7 +1,5 @@
 import { regexEmail } from '../utils/regexEmail.util.js';
 
-import TokenService from '../services/token.service.js';
-
 import UsersRepository from '../repositories/users.repository.js';
 
 class AuthController {
@@ -57,6 +55,7 @@ class AuthController {
                 id: user.id,
                 nickname: user.nickname,
                 email: user.email,
+                role: user.role,
                 authenticated: true
             });
         } catch (error) {

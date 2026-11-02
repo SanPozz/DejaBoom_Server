@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
 import authRoutes from '../routes/auth.routes.js'; 
+import reviewsRoutes from '../routes/reviews.routes.js';
 
 const createApp = () => {
     const app = express();
@@ -20,6 +21,7 @@ const createApp = () => {
     });
 
     app.use('/api/auth', authRoutes);
+    app.use('/api/reviews', reviewsRoutes);
 
     return app;
 };

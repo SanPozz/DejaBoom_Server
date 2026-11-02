@@ -31,29 +31,38 @@ model Users {
   createdAt DateTime @default(now())
   reviews   Reviews[]
   gameLists GameLists[]
+  comments  Comments[]
 }
 
-model Games {
-  id        Int      @id @default(autoincrement())
-  title     String
-  genre     String
-  releaseDate DateTime
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-  reviews   Reviews[]
-  gamelistitems   GameListItems[]
+model Comments {
+  id        Int       @id @default(autoincrement())
+  content   String
+  depth     Int       @default(0)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    Int
+  user      Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewId  Int
+  review    Reviews   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  parentId  Int?
+  parent    Comments? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comments[] @relation("CommentReplies")
+
+  @@index([reviewId, parentId])
+  @@index([userId])
 }
 
 model Reviews {
-  gameId    Int
-  game      Games    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   id        Int      @id @default(autoincrement())
+  gameId    Int
   userId    Int
   user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
   rating    Decimal  @db.Decimal(2,1)
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+  comments  Comments[]
 
   @@unique([gameId, userId])
   @@index([userId])
@@ -76,7 +85,6 @@ model GameListItems {
   gameListId Int
   gameList  GameLists @relation(fields: [gameListId], references: [id], onDelete: Cascade)
   gameId    Int
-  game      Games    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
