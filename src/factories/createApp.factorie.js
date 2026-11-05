@@ -5,6 +5,7 @@ import cors from 'cors';
 import authRoutes from '../routes/auth.routes.js'; 
 import reviewsRoutes from '../routes/reviews.routes.js';
 import gamesRoutes from '../routes/games.routes.js';
+import commentsRoutes from '../routes/comments.routes.js';
 
 const createApp = () => {
     const app = express();
@@ -24,6 +25,7 @@ const createApp = () => {
     app.use('/api/auth', authRoutes);
     app.use('/api/reviews', reviewsRoutes);
     app.use('/api/games', gamesRoutes);
+    app.use('/api', commentsRoutes);
 
     return app;
 };
