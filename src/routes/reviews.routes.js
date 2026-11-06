@@ -10,4 +10,6 @@ const router = Router();
 
 router.post('/create', verifyFirebaseToken, loadUser, checkRole('USER'), ReviewsController.create);
 
+router.get('/:reviewId', verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), ReviewsController.getByReviewId);
+
 export default router;

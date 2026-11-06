@@ -8,6 +8,16 @@ class ReviewsRepository {
         });
     }
 
+    getByReviewId(reviewId) {
+        return prisma.reviews.findUnique({
+            where: { id: reviewId },
+            include: {
+                user: true,
+                comments: true
+            }
+        });
+    }
+
 }
 
 export default ReviewsRepository;
