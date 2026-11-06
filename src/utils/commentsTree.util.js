@@ -43,5 +43,5 @@ export function buildTree(flat) {
     else roots.push(node);
   }
 
-  return roots.reverse();
+  return roots;
 }

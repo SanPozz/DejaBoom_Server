@@ -33,6 +33,9 @@ const getActiveComment = async (id) => {
 
 class CommentsService {
   static async getTree(reviewId) {
+    const review = await repository.findReviewById(reviewId);
+    if (!review) throw new HttpError(404, 'Reseña no encontrada');
+
     const flat = await repository.findByReviewId(reviewId);
     return buildTree(flat);
   }

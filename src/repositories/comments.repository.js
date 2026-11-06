@@ -16,7 +16,7 @@ class CommentsRepository {
   findByReviewId(reviewId) {
     return prisma.comments.findMany({
       where: { reviewId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       include: { user: authorSelect },
     });
   }
