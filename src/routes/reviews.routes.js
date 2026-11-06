@@ -12,4 +12,7 @@ router.post('/create', verifyFirebaseToken, loadUser, checkRole('USER'), Reviews
 
 router.get('/:reviewId', verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), ReviewsController.getByReviewId);
 
+router.put('/like', verifyFirebaseToken, loadUser, checkRole('USER'), ReviewsController.like);
+router.put('/unlike', verifyFirebaseToken, loadUser, checkRole('USER'), ReviewsController.unlike);
+
 export default router;
