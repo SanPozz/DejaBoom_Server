@@ -62,6 +62,7 @@ model Reviews {
   content   String
   rating    Decimal  @db.Decimal(2,1)
   likes     Int      @default(0)
+  completed  Boolean  @default(false)
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
   comments  Comments[]
