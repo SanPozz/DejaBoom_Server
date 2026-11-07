@@ -10,27 +10,28 @@ class ReviewsController {
 
 
     static async create(req, res) {
-        const { gameId, content, rating } = req.body;
+        const { gameId, content, rating, completed } = req.body;
         const userId = req.user.id;
 
         if (!Number.isInteger(Number(gameId))) {
             return res.status(400).send('gameId inválido');
         }
 
-        const review = await reviewsRepository.save({ gameId: Number(gameId), userId, content, rating });
+        const review = await reviewsRepository.save({ gameId: Number(gameId), userId, content, rating, completed });
 
         res.status(201).json(review);
     }
 
     static async getByReviewId(req, res) {
         const { reviewId } = req.params;
+        const user = req.user;
 
         if (!Number.isInteger(Number(reviewId))) {
             return res.status(400).send('reviewId inválido');
         }
 
         try {
-            const review = await reviewsRepository.getByReviewId(Number(reviewId), req.user.id);
+            const review = await reviewsRepository.getByReviewId(Number(reviewId), user.id);
 
             if (!review) {
                 throw new ReviewNotFoundError();

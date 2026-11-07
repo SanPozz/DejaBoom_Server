@@ -2,9 +2,9 @@ import prisma from '../database/db.js';
 
 class ReviewsRepository {
 
-    save({ gameId, userId, content, rating }) {
+    save({ gameId, userId, content, rating, completed }) {
         return prisma.reviews.create({
-            data: { gameId, userId, content, rating }
+            data: { gameId, userId, content, rating, completed }
         });
     }
 
