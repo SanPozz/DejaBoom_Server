@@ -1,5 +1,6 @@
 const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const IGDB_GAMES_URL = 'https://api.igdb.com/v4/games';
+const IGDB_TIME_TO_BEAT_URL = 'https://api.igdb.com/v4/game_time_to_beats';
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
 
 let cachedAccessToken;
@@ -113,6 +114,31 @@ export const getGameById = async (gameId) => {
     }
 
     return response.json();
+};
+
+// Los tiempos vienen en segundos. Devuelve null si IGDB no tiene datos del juego.
+export const getTimeToBeat = async (gameId) => {
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    const accessToken = await getAccessToken();
+
+    const response = await fetch(IGDB_TIME_TO_BEAT_URL, {
+        method: 'POST',
+        headers: {
+            'Client-ID': clientId,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'text/plain',
+        },
+        body: `where game_id = ${gameId}; fields hastily,normally,completely,count; limit 1;`,
+        signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+        throw new Error(`IGDB time to beat request falló con HTTP ${response.status}.`);
+    }
+
+
+    const [timeToBeat] = await response.json();
+    return timeToBeat ?? null;
 };
 
 export default searchGames;
