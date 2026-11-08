@@ -104,7 +104,7 @@ export const getGameById = async (gameId) => {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'text/plain',
         },
-        body: `where id = ${gameId}; fields id,name,cover.url,first_release_date,genres.name,platforms.name,summary,involved_companies.developer,involved_companies.publisher,involved_companies.company.name; limit 1;`,
+        body: `where id = ${gameId}; fields id,name,cover.url,artworks.url,first_release_date,genres.name,platforms.name,summary,involved_companies.developer,involved_companies.publisher,involved_companies.company.name; limit 1;`,
         signal: AbortSignal.timeout(10_000),
     });
 

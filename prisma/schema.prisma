@@ -32,6 +32,7 @@ model Users {
   reviews   Reviews[]
   gameLists GameLists[]
   comments  Comments[]
+  reviewLikes ReviewLikes[]
 }
 
 model Comments {
@@ -60,13 +61,26 @@ model Reviews {
   user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
   rating    Decimal  @db.Decimal(2,1)
+  likes     Int      @default(0)
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
   comments  Comments[]
+  likedBy   ReviewLikes[]
 
   @@unique([gameId, userId])
   @@index([userId])
   @@index([gameId])
+}
+
+model ReviewLikes {
+  reviewId  Int
+  review    Reviews  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([reviewId, userId])
+  @@index([userId])
 }
 
 model GameLists {
