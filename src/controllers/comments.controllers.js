@@ -6,14 +6,13 @@ const parseId = (value) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 
-
 class CommentsController {
   static async getByReview(req, res) {
     const reviewId = parseId(req.params.reviewId);
     if (!reviewId) throw new HttpError(400, 'Id de reseña inválido');
 
     try {
-      const tree = await CommentsService.getTree(reviewId);
+      const tree = await CommentsService.getTree(reviewId, req.currentUser?.id);
       return res.status(200).json(tree);
     } catch (error) {
       throw error;
@@ -44,6 +43,30 @@ class CommentsController {
     } catch (error) {
       throw error;
     }
+  }
+
+  static async like(req, res) {
+    const id = parseId(req.params.id);
+    if (!id) throw new HttpError(400, 'Id de comentario inválido');
+
+    const result = await CommentsService.like({
+      id,
+      user: req.currentUser,
+    });
+
+    return res.status(200).json(result);
+  }
+
+  static async unlike(req, res) {
+    const id = parseId(req.params.id);
+    if (!id) throw new HttpError(400, 'Id de comentario inválido');
+
+    const result = await CommentsService.unlike({
+      id,
+      user: req.currentUser,
+    });
+
+    return res.status(200).json(result);
   }
 
   static async update(req, res) {

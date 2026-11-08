@@ -32,11 +32,11 @@ const getActiveComment = async (id) => {
 };
 
 class CommentsService {
-  static async getTree(reviewId) {
+  static async getTree(reviewId, userId) {
     const review = await repository.findReviewById(reviewId);
     if (!review) throw new HttpError(404, 'Reseña no encontrada');
 
-    const flat = await repository.findByReviewId(reviewId);
+    const flat = await repository.findByReviewId(reviewId, userId);
     return buildTree(flat);
   }
 
@@ -74,6 +74,16 @@ class CommentsService {
       parentId: target.parentId,
       depth: target.depth,
     });
+  }
+
+  static async like({ id, user }) {
+    await getActiveComment(id);
+    return repository.like(id, user.id);
+  }
+
+  static async unlike({ id, user }) {
+    await getActiveComment(id);
+    return repository.unlike(id, user.id);
   }
 
   static async update({ id, user, content }) {

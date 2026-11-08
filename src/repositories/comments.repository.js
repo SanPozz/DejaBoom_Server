@@ -13,11 +13,19 @@ class CommentsRepository {
   }
 
   //lista pllna de todos los comentarios de la reseña en una sola query, ordenados por fecha de creación ascendente (para luego armar el árbol)
-  findByReviewId(reviewId) {
+  findByReviewId(reviewId, userId) {
     return prisma.comments.findMany({
       where: { reviewId },
       orderBy: { createdAt: 'desc' },
-      include: { user: authorSelect },
+      include: { 
+        user: authorSelect, 
+        _count: { select: { likedBy: true } } },
+        ...(userId
+          ?{ likedBy: { 
+            where: { userId },
+          select: { userId: true } } }
+
+      )
     });
   }
 
@@ -46,6 +54,40 @@ class CommentsRepository {
 
   countReplies(id) {
     return prisma.comments.count({ where: { parentId: id } });
+  }
+  
+  async like(commentId, userId) {
+    await prisma.commentLikes.upsert({
+      where: {
+        commentId_userId: { commentId, userId },
+      },
+      update: {},
+      create: { commentId, userId },
+    });
+
+    return this.getLikeStatus(commentId, userId);
+  }
+
+  async unlike(commentId, userId) {
+    await prisma.commentLikes.deleteMany({
+      where: { commentId, userId },
+    });
+
+    return this.getLikeStatus(commentId, userId);
+  }
+
+  async getLikeStatus(commentId, userId) {
+    const [likes, likedByMe] = await Promise.all([
+      prisma.commentLikes.count({ where: { commentId } }),
+      prisma.commentLikes.findUnique({
+        where: {
+          commentId_userId: { commentId, userId },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    return { likes, likedByMe: Boolean(likedByMe) };
   }
 }
 
