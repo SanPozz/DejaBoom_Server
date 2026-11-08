@@ -9,6 +9,7 @@ class ReviewsController {
     static async create(req, res) {
         const { gameId, content, rating, completed } = req.body;
         const userId = req.user.id;
+        const ratingValue = Number(rating);
 
         if (!Number.isInteger(Number(gameId))) {
             throw new HttpError(400, 'gameId inválido');
@@ -18,7 +19,7 @@ class ReviewsController {
             throw new HttpError(400, 'content inválido');
         }
 
-        if (!Number.isInteger(Number(rating)) || rating < 1 || rating > 5) {
+        if (!Number.isInteger(ratingValue * 2) || ratingValue < 0.5 || ratingValue > 5) {
             throw new HttpError(400, 'rating inválido');
         }
 
@@ -27,7 +28,7 @@ class ReviewsController {
         }
 
         try {
-            const review = await reviewsRepository.save({ gameId: Number(gameId), userId, content, rating, completed });
+            const review = await reviewsRepository.save({ gameId: Number(gameId), userId, content, rating: ratingValue, completed });
             return res.status(201).json(review);
         } catch (error) {
             if (error.code === 'P2002') {
