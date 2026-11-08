@@ -1,5 +1,8 @@
-import searchGames, { getGameById, IgdbConfigurationError, listGames } from '../services/igdb.service.js';
-import { DeepLConfigurationError, translateTextsToSpanish } from '../services/deepl.service.js';
+import {searchGames, getGameById, getTimeToBeat, IgdbConfigurationError, listGames, getSimilarGames } from '../services/igdb.service.js';
+import translateToSpanish, { DeepLConfigurationError } from '../services/deepl.service.js';
+import ReviewsRepository from '../repositories/reviews.repository.js';
+
+const reviewsRepository = new ReviewsRepository();
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
@@ -79,9 +82,18 @@ class GamesController {
         }
 
         let game;
+        let timeToBeat;
         try {
-            const games = await getGameById(gameId);
+            const [games, timeToBeatData] = await Promise.all([
+                getGameById(gameId),
+                // Si falla el time to beat, el detalle del juego se devuelve igual
+                getTimeToBeat(gameId).catch((error) => {
+                    console.error('IGDB time to beat retrieval failed:', error.message);
+                    return null;
+                }),
+            ]);
             game = games[0];
+            timeToBeat = timeToBeatData;
         } catch (error) {
             console.error('IGDB game retrieval failed:', error.message);
 
@@ -97,37 +109,62 @@ class GamesController {
         }
 
         try {
-            const genres = Array.isArray(game.genres) ? game.genres : [];
-            const textsToTranslate = [];
-            const summaryIndex = typeof game.summary === 'string' && game.summary.length > 0
-                ? textsToTranslate.push(game.summary) - 1
-                : -1;
-            const genreIndexes = genres.map(genre => {
-                if (typeof genre.name !== 'string' || !genre.name) {
-                    return -1;
-                }
-
-                return textsToTranslate.push(genre.name) - 1;
-            });
-            const translatedTexts = await translateTextsToSpanish(textsToTranslate);
-            const translatedGenres = genres.map((genre, index) => ({
-                ...genre,
-                nameEs: genreIndexes[index] === -1 ? null : translatedTexts[genreIndexes[index]],
-            }));
+            const summaryEs = typeof game.summary === 'string' && game.summary.length > 0
+                ? await translateToSpanish(game.summary)
+                : null;
 
             return res.json({
                 ...game,
-                summaryEs: summaryIndex === -1 ? null : translatedTexts[summaryIndex],
-                genres: translatedGenres,
+                summaryEs,
+                timeToBeat,
             });
         } catch (error) {
-            console.error('Game description or genre translation failed:', error.message);
+            console.error('Game description translation failed:', error.message);
 
             if (error instanceof DeepLConfigurationError) {
                 return res.status(500).json({ error: 'La clave de API de DeepL no está configurada en el servidor.' });
             }
 
-            return res.status(502).json({ error: 'No se pudo traducir la descripción del juego o los géneros.' });
+            return res.status(502).json({ error: 'No se pudo traducir la descripción del juego.' });
+        }
+    }
+
+    static async getSimilar(req, res) {
+        const gameId = Number(req.params.id);
+
+        if (!Number.isSafeInteger(gameId) || gameId < 1) {
+            return res.status(400).json({ error: 'El ID del juego tiene que ser un entero positivo.' });
+        }
+
+        try {
+
+            const response = await getSimilarGames(gameId);
+            return res.json(response);
+        } catch (error) {
+            console.error('IGDB similar games retrieval failed:', error.message);
+
+            if (error instanceof IgdbConfigurationError) {
+                return res.status(500).json({ error: 'Las credenciales de IGDB no están configuradas en el servidor.' });
+            }
+
+            return res.status(502).json({ error: 'No se pudieron obtener los juegos similares de IGDB.' });
+        }
+    }
+
+    static async getCommunity(req, res) {
+
+        const gameId = Number(req.params.id);
+
+        if (!Number.isSafeInteger(gameId) || gameId < 1) {
+            return res.status(400).json({ error: 'El ID del juego tiene que ser un entero positivo.' });
+        }
+
+        try {
+            const stats = await reviewsRepository.getCommunityStatsByGameId(gameId);
+            return res.json(stats);
+        } catch (error) {
+            console.error('Game community stats retrieval failed:', error.message);
+            return res.status(500).json({ error: 'No se pudieron obtener los datos de la comunidad del juego.' });
         }
     }
 

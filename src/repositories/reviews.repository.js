@@ -2,10 +2,19 @@ import prisma from '../database/db.js';
 
 class ReviewsRepository {
 
-    save({ gameId, userId, content, rating }) {
+    save({ gameId, userId, content, rating, completed }) {
         return prisma.reviews.create({
-            data: { gameId, userId, content, rating }
+            data: { gameId, userId, content, rating, completed }
         });
+    }
+
+    async getCommunityStatsByGameId(gameId) {
+        const [reviewsCount, completedCount] = await prisma.$transaction([
+            prisma.reviews.count({ where: { gameId } }),
+            prisma.reviews.count({ where: { gameId, completed: true } })
+        ]);
+
+        return { reviewsCount, completedCount };
     }
 
     getByReviewId(reviewId, userId) {

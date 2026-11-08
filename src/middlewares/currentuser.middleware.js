@@ -1,5 +1,7 @@
 import UsersRepository from '../repositories/users.repository.js';
 
+import { HttpError } from '../utils/httperror.util.js';
+
 const currentUser = async (req, res, next) => {
   try {
     const user = await new UsersRepository().findByFirebaseUID(
@@ -7,14 +9,14 @@ const currentUser = async (req, res, next) => {
     );
 
     if (!user) {
-      return res.status(404).send('Usuario no registrado en DejaBoom');
+      throw new HttpError(404, 'Usuario no registrado en DejaBoom');
     }
 
     req.currentUser = user;
     return next();
   } catch (error) {
     console.error('Error al obtener el usuario actual:', error);
-    return res.status(500).send('Error al obtener el usuario');
+    throw error
   }
 };
 

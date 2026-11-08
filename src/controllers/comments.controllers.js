@@ -6,38 +6,30 @@ const parseId = (value) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 
-const handleError = (res, error, fallbackMessage) => {
-  if (error instanceof HttpError) {
-    return res.status(error.status).send(error.message);
-  }
-
-  console.error(fallbackMessage, error);
-  return res.status(500).send(fallbackMessage);
-};
 
 class CommentsController {
   static async getByReview(req, res) {
     const reviewId = parseId(req.params.reviewId);
-    if (!reviewId) return res.status(400).send('Id de reseña inválido');
+    if (!reviewId) throw new HttpError(400, 'Id de reseña inválido');
 
     try {
       const tree = await CommentsService.getTree(reviewId);
       return res.status(200).json(tree);
     } catch (error) {
-      return handleError(res, error, 'Error al obtener los comentarios');
+      throw error;
     }
   }
 
   static async create(req, res) {
     const reviewId = parseId(req.params.reviewId);
-    if (!reviewId) return res.status(400).send('Id de reseña inválido');
+    if (!reviewId) throw new HttpError(400, 'Id de reseña inválido');
 
     const { content, parentId } = req.body;
 
     let parent = null;
     if (parentId !== undefined && parentId !== null) {
       parent = parseId(parentId);
-      if (!parent) return res.status(400).send('parentId inválido');
+      if (!parent) throw new HttpError(400, 'parentId inválido');
     }
 
     try {
@@ -50,13 +42,13 @@ class CommentsController {
 
       return res.status(201).json({ id: comment.id });
     } catch (error) {
-      return handleError(res, error, 'Error al crear el comentario');
+      throw error;
     }
   }
 
   static async update(req, res) {
     const id = parseId(req.params.id);
-    if (!id) return res.status(400).send('Id de comentario inválido');
+    if (!id) throw new HttpError(400, 'Id de comentario inválido');
 
     try {
       await CommentsService.update({
@@ -66,19 +58,19 @@ class CommentsController {
       });
       return res.status(200).json({ id });
     } catch (error) {
-      return handleError(res, error, 'Error al editar el comentario');
+      throw error;
     }
   }
 
   static async remove(req, res) {
     const id = parseId(req.params.id);
-    if (!id) return res.status(400).send('Id de comentario inválido');
+    if (!id) throw new HttpError(400, 'Id de comentario inválido');
 
     try {
       await CommentsService.remove({ id, user: req.currentUser });
       return res.status(204).send();
     } catch (error) {
-      return handleError(res, error, 'Error al eliminar el comentario');
+      throw error;
     }
   }
 }
