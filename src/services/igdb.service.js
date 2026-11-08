@@ -142,7 +142,7 @@ export const getGameById = async (gameId) => {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'text/plain',
         },
-        body: `where id = ${gameId}; fields id,name,cover.url,artworks.url,first_release_date,genres.name,platforms.name,summary,involved_companies.developer,involved_companies.publisher,involved_companies.company.name; limit 1;`,
+        body: `where id = ${gameId}; fields id,name,cover.url,artworks.url,first_release_date,genres.name,platforms.name,summary,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,similar_games.id,similar_games.name,similar_games.cover.url,similar_games.first_release_date,similar_games.genres.name,similar_games.platforms.name,similar_games.summary; limit 1;`,
         signal: AbortSignal.timeout(10_000),
     });
 
@@ -193,34 +193,4 @@ export const getTimeToBeat = async (gameId) => {
 
     setCachedIgdb(cacheKey, timeToBeat);
     return timeToBeat;
-};
-
-export const getSimilarGames = async (gameId) => {
-
-    const cacheKey = `similarGames:${gameId}`;
-    const cached = getCachedIgdb(cacheKey);
-    if (cached !== undefined) return cached;
-
-    const clientId = process.env.TWITCH_CLIENT_ID;
-    const accessToken = await getAccessToken();
-
-    const response = await fetch(IGDB_GAMES_URL, {
-        method: 'POST',
-        headers: {
-            'Client-ID': clientId,
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'text/plain',
-        },
-        body: `where id = ${gameId}; fields similar_games.id,similar_games.name,similar_games.cover.url,similar_games.first_release_date,similar_games.genres.name,similar_games.platforms.name,similar_games.summary; limit 1;`,
-        signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-        throw new Error(`IGDB similar games request falló con HTTP ${response.status}.`);
-    }
-
-    const [game] = await response.json();
-    const similarGames = game?.similar_games ?? [];
-    setCachedIgdb(cacheKey, similarGames);
-    return similarGames;
 };

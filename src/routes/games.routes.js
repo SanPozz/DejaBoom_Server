@@ -9,10 +9,6 @@ router.get('/search', GamesController.search);
 
 router.get('/:id', GamesController.getById);
 
-router.get('/:id/similar', GamesController.getSimilar);
-
-router.get('/:id/community', GamesController.getCommunity);
-
 router.get('/:id/community', GamesController.getCommunity);
 
 export default router;

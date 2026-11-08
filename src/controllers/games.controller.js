@@ -1,4 +1,4 @@
-import {searchGames, getGameById, getTimeToBeat, IgdbConfigurationError, listGames, getSimilarGames } from '../services/igdb.service.js';
+import {searchGames, getGameById, getTimeToBeat, IgdbConfigurationError, listGames } from '../services/igdb.service.js';
 import translateToSpanishWithCache, { DeepLConfigurationError } from '../services/deepl.service.js';
 import ReviewsRepository from '../repositories/reviews.repository.js';
 
@@ -126,28 +126,6 @@ class GamesController {
             }
 
             return res.status(502).json({ error: 'No se pudo traducir la descripción del juego.' });
-        }
-    }
-
-    static async getSimilar(req, res) {
-        const gameId = Number(req.params.id);
-
-        if (!Number.isSafeInteger(gameId) || gameId < 1) {
-            return res.status(400).json({ error: 'El ID del juego tiene que ser un entero positivo.' });
-        }
-
-        try {
-
-            const response = await getSimilarGames(gameId);
-            return res.json(response);
-        } catch (error) {
-            console.error('IGDB similar games retrieval failed:', error.message);
-
-            if (error instanceof IgdbConfigurationError) {
-                return res.status(500).json({ error: 'Las credenciales de IGDB no están configuradas en el servidor.' });
-            }
-
-            return res.status(502).json({ error: 'No se pudieron obtener los juegos similares de IGDB.' });
         }
     }
 
