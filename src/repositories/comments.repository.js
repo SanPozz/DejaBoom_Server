@@ -17,15 +17,18 @@ class CommentsRepository {
     return prisma.comments.findMany({
       where: { reviewId },
       orderBy: { createdAt: 'desc' },
-      include: { 
-        user: authorSelect, 
-        _count: { select: { likedBy: true } } },
+      include: {
+        user: authorSelect,
+        _count: { select: { likedBy: true } },
         ...(userId
-          ?{ likedBy: { 
-            where: { userId },
-          select: { userId: true } } }
-
-      )
+          ? {
+              likedBy: {
+                where: { userId },
+                select: { userId: true },
+              },
+            }
+          : {}),
+      },
     });
   }
 
@@ -55,7 +58,7 @@ class CommentsRepository {
   countReplies(id) {
     return prisma.comments.count({ where: { parentId: id } });
   }
-  
+
   async like(commentId, userId) {
     await prisma.commentLikes.upsert({
       where: {
