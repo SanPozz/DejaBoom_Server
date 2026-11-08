@@ -8,6 +8,15 @@ class ReviewsRepository {
         });
     }
 
+    async getCommunityStatsByGameId(gameId) {
+        const [reviewsCount, completedCount] = await prisma.$transaction([
+            prisma.reviews.count({ where: { gameId } }),
+            prisma.reviews.count({ where: { gameId, completed: true } })
+        ]);
+
+        return { reviewsCount, completedCount };
+    }
+
     getByReviewId(reviewId, userId) {
         return prisma.reviews.findUnique({
             where: { id: reviewId },

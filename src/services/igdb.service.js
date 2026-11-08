@@ -48,7 +48,7 @@ const getAccessToken = async () => {
     return cachedAccessToken;
 };
 
-const searchGames = async (searchTerm) => {
+export const searchGames = async (searchTerm) => {
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
     const escapedSearchTerm = JSON.stringify(searchTerm.trim().replace(/[\r\n]/g, ' '));
@@ -141,4 +141,25 @@ export const getTimeToBeat = async (gameId) => {
     return timeToBeat ?? null;
 };
 
-export default searchGames;
+export const getSimilarGames = async (gameId) => {
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    const accessToken = await getAccessToken();
+
+    const response = await fetch(IGDB_GAMES_URL, {
+        method: 'POST',
+        headers: {
+            'Client-ID': clientId,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'text/plain',
+        },
+        body: `where id = ${gameId}; fields similar_games.id,similar_games.name,similar_games.cover.url,similar_games.first_release_date,similar_games.genres.name,similar_games.platforms.name,similar_games.summary; limit 1;`,
+        signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+        throw new Error(`IGDB similar games request falló con HTTP ${response.status}.`);
+    }
+
+    const [game] = await response.json();
+    return game?.similar_games ?? [];
+};
