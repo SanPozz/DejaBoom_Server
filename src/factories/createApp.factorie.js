@@ -2,6 +2,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
+import errorHandler from '../middlewares/errorHandler.middleware.js';
+
 import authRoutes from '../routes/auth.routes.js'; 
 import reviewsRoutes from '../routes/reviews.routes.js';
 import gamesRoutes from '../routes/games.routes.js';
@@ -26,6 +28,8 @@ const createApp = () => {
     app.use('/api/reviews', reviewsRoutes);
     app.use('/api/games', gamesRoutes);
     app.use('/api', commentsRoutes);
+
+    app.use(errorHandler);
 
     return app;
 };
