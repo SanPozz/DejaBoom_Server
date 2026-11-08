@@ -1,5 +1,5 @@
 import {searchGames, getGameById, getTimeToBeat, IgdbConfigurationError, listGames, getSimilarGames } from '../services/igdb.service.js';
-import translateToSpanish, { DeepLConfigurationError } from '../services/deepl.service.js';
+import translateToSpanishWithCache, { DeepLConfigurationError } from '../services/deepl.service.js';
 import ReviewsRepository from '../repositories/reviews.repository.js';
 
 const reviewsRepository = new ReviewsRepository();
@@ -110,7 +110,7 @@ class GamesController {
 
         try {
             const summaryEs = typeof game.summary === 'string' && game.summary.length > 0
-                ? await translateToSpanish(game.summary)
+                ? await translateToSpanishWithCache(game.summary)
                 : null;
 
             return res.json({

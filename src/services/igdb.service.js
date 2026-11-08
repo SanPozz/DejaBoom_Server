@@ -6,6 +6,35 @@ const TOKEN_REFRESH_MARGIN_MS = 60_000;
 let cachedAccessToken;
 let tokenExpiresAt = 0;
 
+const MAX_CACHE_SIZE = 200;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora en milisegundos
+
+const igdbCached = new Map();
+
+const getCachedIgdb = (key) => {
+    const cached = igdbCached.get(key);
+
+    if (cached === undefined) return undefined;
+
+    if (Date.now() > cached.expiresAt) {
+        igdbCached.delete(key);
+        return undefined;
+    }
+
+    igdbCached.delete(key);
+    igdbCached.set(key, cached);
+    return cached.value;
+};
+
+const setCachedIgdb = (key, value) => {
+    if (igdbCached.size >= MAX_CACHE_SIZE) {
+        const oldestKey = igdbCached.keys().next().value;
+        igdbCached.delete(oldestKey);
+    }
+
+    igdbCached.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+};
+
 export class IgdbConfigurationError extends Error {}
 
 const getAccessToken = async () => {
@@ -95,8 +124,16 @@ export const listGames = async ({ afterId, limit }) => {
 };
 
 export const getGameById = async (gameId) => {
+
+    const cacheKey = `game:${gameId}`;
+
+    const cached = getCachedIgdb(cacheKey);
+    if (cached !== undefined) return [cached];
+
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
+
+
 
     const response = await fetch(IGDB_GAMES_URL, {
         method: 'POST',
@@ -113,11 +150,21 @@ export const getGameById = async (gameId) => {
         throw new Error(`IGDB game request falló con HTTP ${response.status}.`);
     }
 
-    return response.json();
+    const result = await response.json();
+    const game = result[0];
+    if (game) {
+        setCachedIgdb(cacheKey, game);
+    }
+    return result
 };
 
 // Los tiempos vienen en segundos. Devuelve null si IGDB no tiene datos del juego.
 export const getTimeToBeat = async (gameId) => {
+
+    const cacheKey = `timeToBeat:${gameId}`;
+    const cached = getCachedIgdb(cacheKey);
+    if (cached !== undefined) return cached;
+
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
 
@@ -138,10 +185,22 @@ export const getTimeToBeat = async (gameId) => {
 
 
     const [timeToBeat] = await response.json();
-    return timeToBeat ?? null;
+
+    if (timeToBeat === undefined) {
+        setCachedIgdb(cacheKey, null);
+        return null;
+    }
+
+    setCachedIgdb(cacheKey, timeToBeat);
+    return timeToBeat;
 };
 
 export const getSimilarGames = async (gameId) => {
+
+    const cacheKey = `similarGames:${gameId}`;
+    const cached = getCachedIgdb(cacheKey);
+    if (cached !== undefined) return cached;
+
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
 
@@ -161,5 +220,7 @@ export const getSimilarGames = async (gameId) => {
     }
 
     const [game] = await response.json();
-    return game?.similar_games ?? [];
+    const similarGames = game?.similar_games ?? [];
+    setCachedIgdb(cacheKey, similarGames);
+    return similarGames;
 };
