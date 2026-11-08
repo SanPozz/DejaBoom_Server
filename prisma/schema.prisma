@@ -33,6 +33,7 @@ model Users {
   gameLists GameLists[]
   comments  Comments[]
   reviewLikes ReviewLikes[]
+  commentLikes CommentLikes[]
 }
 
 model Comments {
@@ -49,6 +50,7 @@ model Comments {
   parentId  Int?
   parent    Comments? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comments[] @relation("CommentReplies")
+  likedBy CommentLikes[]
 
   @@index([reviewId, parentId])
   @@index([userId])
@@ -105,4 +107,17 @@ model GameListItems {
 
   @@id([gameListId, gameId])
   @@index([gameId])
+}
+
+model CommentLikes {
+  id        Int      @id @default(autoincrement())
+  commentId Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  comment Comments @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
 }

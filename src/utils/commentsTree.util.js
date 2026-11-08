@@ -19,6 +19,8 @@ function toNode(c) {
     content: deleted ? null : c.content,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
+    likes: c._count?.likedBy ?? 0,
+    likedByMe: (c.likedBy?.length ?? 0) > 0,
     author: deleted
       ? null
       : {
@@ -43,5 +45,5 @@ export function buildTree(flat) {
     else roots.push(node);
   }
 
-  return roots.reverse();
+  return roots;
 }
