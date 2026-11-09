@@ -133,8 +133,6 @@ export const getGameById = async (gameId) => {
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
 
-
-
     const response = await fetch(IGDB_GAMES_URL, {
         method: 'POST',
         headers: {
@@ -194,3 +192,59 @@ export const getTimeToBeat = async (gameId) => {
     setCachedIgdb(cacheKey, timeToBeat);
     return timeToBeat;
 };
+
+export const getGamesByIds = async (gameIds) => {
+
+    const GAME_CARD_FIELDS = 'id,name,cover.url,first_release_date,genres.name,platforms.name';
+
+    const flagNotNumber = gameIds.some(id => !Number.isInteger(id) || id <= 0);
+
+    if (flagNotNumber) {
+        throw new Error('Todos los elementos de gameIds deben ser números enteros positivos.');
+    }
+
+    const uniqueIds = [...new Set(gameIds)];
+
+    if (uniqueIds.length === 0) return [];
+
+    const found = new Map();
+    const missing = [];
+
+    uniqueIds.forEach((id) => {
+        const cached = getCachedIgdb(`card:${id}`);
+        if (cached !== undefined) {
+            found.set(id, cached);
+        } else {
+            missing.push(id);
+        }
+    });
+
+    if (missing.length > 0) {
+        const clientId = process.env.TWITCH_CLIENT_ID;
+        const accessToken = await getAccessToken();
+
+        const response = await fetch(IGDB_GAMES_URL, {
+            method: 'POST',
+            headers: {
+                'Client-ID': clientId,
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'text/plain',
+            },
+            body: `where id = (${missing.join(',')}); fields ${GAME_CARD_FIELDS}; limit ${missing.length};`,
+            signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!response.ok) {
+            throw new Error(`IGDB games request falló con HTTP ${response.status}.`);
+        }
+
+        const results = await response.json();
+        results.forEach((game) => {
+            setCachedIgdb(`card:${game.id}`, game);
+            found.set(game.id, game);
+        });
+    }
+
+    return gameIds.map((id) => found.get(id) || null);
+}
+
