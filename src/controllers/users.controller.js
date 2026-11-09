@@ -17,7 +17,7 @@ class UsersController {
         const user = await usersRepository.findByUsername(nickname);
 
         if (!user) {
-            throw new HttpError(404, "User not found");
+            throw new HttpError(404, "Usuario no encontrado");
         }
 
         const [stats, reviews] = await Promise.all([
