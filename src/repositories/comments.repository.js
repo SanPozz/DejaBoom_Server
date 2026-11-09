@@ -8,7 +8,7 @@ class CommentsRepository {
   findReviewById(reviewId) {
     return prisma.reviews.findUnique({
       where: { id: reviewId },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
   }
 
@@ -24,7 +24,7 @@ class CommentsRepository {
           ? {
               likedBy: {
                 where: { userId },
-                select: { userId: true },
+                select: { id: true, userId: true },
               },
             }
           : {}),
@@ -60,15 +60,18 @@ class CommentsRepository {
   }
 
   async like(commentId, userId) {
-    await prisma.commentLikes.upsert({
-      where: {
-        commentId_userId: { commentId, userId },
-      },
-      update: {},
-      create: { commentId, userId },
+    //ignora likes duplicados count indica si se insertó uno nuevo o ya existia
+    const { count } = await prisma.commentLikes.createMany({
+      data: { commentId, userId },
+      skipDuplicates: true,
     });
 
-    return this.getLikeStatus(commentId, userId);
+    const likeStatus = await this.getLikeStatus(commentId, userId);
+
+    return {
+      ...likeStatus,
+      created: count > 0,
+    };
   }
 
   async unlike(commentId, userId) {

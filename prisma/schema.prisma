@@ -16,59 +16,69 @@ enum Role {
   USER
   ADMIN
   MODERATOR
-} 
+}
+
+enum NotificationType {
+  REVIEW_LIKE
+  COMMENT
+  COMMENT_LIKE
+}
 
 model Users {
-  id        Int      @id @default(autoincrement())
-  firebaseUID String   @unique
-  email     String   @unique
-  nickname String @unique
-  role Role @default(USER)
-  profilePicture String?
-  profileBanner String?
-  bio       String?
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-  reviews   Reviews[]
-  gameLists GameLists[]
-  comments  Comments[]
-  reviewLikes ReviewLikes[]
-  commentLikes CommentLikes[]
+  id                    Int             @id @default(autoincrement())
+  firebaseUID           String          @unique
+  email                 String          @unique
+  nickname              String          @unique
+  role                  Role            @default(USER)
+  profilePicture        String?
+  profileBanner         String?
+  bio                   String?
+  updatedAt             DateTime        @updatedAt
+  createdAt             DateTime        @default(now())
+  reviews               Reviews[]
+  gameLists             GameLists[]
+  comments              Comments[]
+  reviewLikes           ReviewLikes[]
+  commentLikes          CommentLikes[]
+  notificationsReceived Notifications[] @relation("NotificationRecipient")
+  notificationsSent     Notifications[] @relation("NotificationActor")
 }
 
 model Comments {
-  id        Int       @id @default(autoincrement())
-  content   String
-  depth     Int       @default(0)
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  userId    Int
-  user      Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviewId  Int
-  review    Reviews   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  parentId  Int?
-  parent    Comments? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Comments[] @relation("CommentReplies")
-  likedBy CommentLikes[]
+  id            Int             @id @default(autoincrement())
+  content       String
+  depth         Int             @default(0)
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  userId        Int
+  user          Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewId      Int
+  review        Reviews         @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  parentId      Int?
+  parent        Comments?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comments[]      @relation("CommentReplies")
+  likedBy       CommentLikes[]
+  notifications Notifications[] @relation("NotificationComment")
 
   @@index([reviewId, parentId])
   @@index([userId])
 }
 
 model Reviews {
-  id        Int      @id @default(autoincrement())
-  gameId    Int
-  userId    Int
-  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String
-  rating    Decimal  @db.Decimal(2,1)
-  likes     Int      @default(0)
-  completed  Boolean  @default(false)
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-  comments  Comments[]
-  likedBy   ReviewLikes[]
+  id            Int             @id @default(autoincrement())
+  gameId        Int
+  userId        Int
+  user          Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content       String
+  rating        Decimal         @db.Decimal(2, 1)
+  likes         Int             @default(0)
+  completed     Boolean         @default(false)
+  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime        @default(now())
+  comments      Comments[]
+  likedBy       ReviewLikes[]
+  notifications Notifications[] @relation("NotificationReview")
 
   @@unique([gameId, userId])
   @@index([userId])
@@ -87,12 +97,12 @@ model ReviewLikes {
 }
 
 model GameLists {
-  id        Int      @id @default(autoincrement())
+  id        Int             @id @default(autoincrement())
   userId    Int
-  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
   items     GameListItems[]
 
   @@index([userId])
@@ -100,10 +110,10 @@ model GameLists {
 
 model GameListItems {
   gameListId Int
-  gameList  GameLists @relation(fields: [gameListId], references: [id], onDelete: Cascade)
-  gameId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  gameList   GameLists @relation(fields: [gameListId], references: [id], onDelete: Cascade)
+  gameId     Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@id([gameListId, gameId])
   @@index([gameId])
@@ -120,4 +130,24 @@ model CommentLikes {
 
   @@unique([commentId, userId])
   @@index([userId])
+}
+
+model Notifications {
+  id          Int              @id @default(autoincrement())
+  recipientId Int
+  recipient   Users            @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     Int
+  actor       Users            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  reviewId    Int?
+  review      Reviews?         @relation("NotificationReview", fields: [reviewId], references: [id], onDelete: Cascade)
+  commentId   Int?
+  comment     Comments?        @relation("NotificationComment", fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  readAt      DateTime?
+
+  @@index([recipientId, createdAt])
+  @@index([recipientId, readAt])
+  @@index([reviewId])
+  @@index([commentId])
 }

@@ -1,6 +1,7 @@
 import CommentsRepository from '../repositories/comments.repository.js';
 import { HttpError } from '../utils/httperror.util.js';
 import { buildTree, resolveReplyTarget } from '../utils/commentsTree.util.js';
+import NotificationsService from './notifications.service.js';
 
 const MAX_LENGTH = 1000;
 const MODERATION_ROLES = ['ADMIN', 'MODERATOR'];
@@ -45,7 +46,7 @@ class CommentsService {
 
     const review = await repository.findReviewById(reviewId);
     if (!review) throw new HttpError(404, 'Reseña no encontrada');
-
+    let recipientId = review.userId;
     let target = { parentId: null, depth: 0 };
 
     if (parentId !== null) {
@@ -63,22 +64,47 @@ class CommentsService {
           'No se puede responder a un comentario eliminado',
         );
       }
-
+      recipientId = parent.userId;
       target = resolveReplyTarget(parent);
     }
 
-    return repository.save({
+    const comment = await repository.save({
       content: text,
       reviewId,
       userId: user.id,
       parentId: target.parentId,
       depth: target.depth,
     });
+
+    await NotificationsService.create({
+      recipientId,
+      actorId: user.id,
+      type: 'COMMENT',
+      reviewId,
+      commentId: comment.id,
+    });
+
+    return comment;
   }
 
   static async like({ id, user }) {
-    await getActiveComment(id);
-    return repository.like(id, user.id);
+    const comment = await getActiveComment(id);
+    const result = await repository.like(id, user.id);
+
+    if (result.created) {
+      await NotificationsService.create({
+        recipientId: comment.userId,
+        actorId: user.id,
+        type: 'COMMENT_LIKE',
+        reviewId: comment.reviewId,
+        commentId: comment.id,
+      });
+    }
+
+    return {
+      likes: result.likes,
+      likedByMe: result.likedByMe,
+    };
   }
 
   static async unlike({ id, user }) {
