@@ -16,6 +16,7 @@ const createApp = () => {
     app.use(cors({
         origin: ['https://dejaboomdemo.vercel.app', 'http://localhost:5175', 'http://localhost:5173' ],
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
     }));
 
     app.use(express.json());

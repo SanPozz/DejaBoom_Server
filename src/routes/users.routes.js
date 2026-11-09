@@ -8,4 +8,6 @@ const router = Router();
 
 router.get("/:nickname/profile", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.getProfile);
 
+router.patch("/me", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.updateMe);
+
 export default router;
