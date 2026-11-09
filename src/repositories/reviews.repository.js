@@ -70,6 +70,39 @@ class ReviewsRepository {
         return prisma.reviews.findUnique({ where: { id: reviewId } });
     }
 
+    getByUserId(userId, {limit = 20, cursor} = {}) {
+
+        return prisma.reviews.findMany({
+            where: { userId },
+            orderBy: [{createdAt: 'desc'}, { id: 'desc' }],
+            take: limit,
+            ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+            select: {
+                id: true,
+                gameId: true,
+                content: true,
+                rating: true,
+                completed: true,
+                createdAt: true,
+                likes: true,
+            }
+            
+        });
+    }
+
+    getRecentByUserId(userId, limit = 3) {
+        return this.getByUserId(userId, { limit });
+    }
+
+    async getUserStats(userId) {
+        const [reviewsCount, completedCount] = await prisma.$transaction([
+            prisma.reviews.count({where: {userId} }),
+            prisma.reviews.count({where: {userId, completed: true} })
+        ])
+
+        return {reviewsCount, completedCount}
+    }
+
 }
 
 export default ReviewsRepository;

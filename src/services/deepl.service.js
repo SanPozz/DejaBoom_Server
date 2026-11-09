@@ -1,5 +1,7 @@
 const DEEPL_TRANSLATE_URL = 'https://api-free.deepl.com/v2/translate';
 
+const MAX_CACHE_SIZE = 200;
+
 export class DeepLConfigurationError extends Error {}
 
 export const translateTextsToSpanish = async (texts) => {
@@ -46,4 +48,37 @@ export const translateTextsToSpanish = async (texts) => {
 
 const translateToSpanish = async (text) => (await translateTextsToSpanish([text]))[0];
 
-export default translateToSpanish;
+const cachedTranslations = new Map();
+
+const hasCachedTranslation = (text) => cachedTranslations.has(text);
+
+const getCachedTranslation = (text) => {
+    const translation = cachedTranslations.get(text);
+    cachedTranslations.delete(text);
+    cachedTranslations.set(text, translation);
+    return translation;
+};
+
+const setCachedTranslation = (text, translation) => {
+
+    if (cachedTranslations.size >= MAX_CACHE_SIZE) {
+        const oldestKey = cachedTranslations.keys().next().value;
+        cachedTranslations.delete(oldestKey);
+    }
+
+    cachedTranslations.set(text, translation);
+};
+
+const translateToSpanishWithCache = async (text) => {
+    
+    if (hasCachedTranslation(text)) {
+        return getCachedTranslation(text);
+    }
+
+    const translation = await translateToSpanish(text);
+
+    setCachedTranslation(text, translation);
+    return translation;
+};
+
+export default translateToSpanishWithCache;

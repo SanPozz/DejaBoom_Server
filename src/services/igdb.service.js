@@ -6,6 +6,35 @@ const TOKEN_REFRESH_MARGIN_MS = 60_000;
 let cachedAccessToken;
 let tokenExpiresAt = 0;
 
+const MAX_CACHE_SIZE = 200;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora en milisegundos
+
+const igdbCached = new Map();
+
+const getCachedIgdb = (key) => {
+    const cached = igdbCached.get(key);
+
+    if (cached === undefined) return undefined;
+
+    if (Date.now() > cached.expiresAt) {
+        igdbCached.delete(key);
+        return undefined;
+    }
+
+    igdbCached.delete(key);
+    igdbCached.set(key, cached);
+    return cached.value;
+};
+
+const setCachedIgdb = (key, value) => {
+    if (igdbCached.size >= MAX_CACHE_SIZE) {
+        const oldestKey = igdbCached.keys().next().value;
+        igdbCached.delete(oldestKey);
+    }
+
+    igdbCached.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+};
+
 export class IgdbConfigurationError extends Error {}
 
 const getAccessToken = async () => {
@@ -95,6 +124,12 @@ export const listGames = async ({ afterId, limit }) => {
 };
 
 export const getGameById = async (gameId) => {
+
+    const cacheKey = `game:${gameId}`;
+
+    const cached = getCachedIgdb(cacheKey);
+    if (cached !== undefined) return [cached];
+
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
 
@@ -105,7 +140,7 @@ export const getGameById = async (gameId) => {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'text/plain',
         },
-        body: `where id = ${gameId}; fields id,name,cover.url,artworks.url,first_release_date,genres.name,platforms.name,summary,involved_companies.developer,involved_companies.publisher,involved_companies.company.name; limit 1;`,
+        body: `where id = ${gameId}; fields id,name,cover.url,artworks.url,first_release_date,genres.name,platforms.name,summary,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,similar_games.id,similar_games.name,similar_games.cover.url,similar_games.first_release_date,similar_games.genres.name,similar_games.platforms.name,similar_games.summary; limit 1;`,
         signal: AbortSignal.timeout(10_000),
     });
 
@@ -113,11 +148,21 @@ export const getGameById = async (gameId) => {
         throw new Error(`IGDB game request falló con HTTP ${response.status}.`);
     }
 
-    return response.json();
+    const result = await response.json();
+    const game = result[0];
+    if (game) {
+        setCachedIgdb(cacheKey, game);
+    }
+    return result
 };
 
 // Los tiempos vienen en segundos. Devuelve null si IGDB no tiene datos del juego.
 export const getTimeToBeat = async (gameId) => {
+
+    const cacheKey = `timeToBeat:${gameId}`;
+    const cached = getCachedIgdb(cacheKey);
+    if (cached !== undefined) return cached;
+
     const clientId = process.env.TWITCH_CLIENT_ID;
     const accessToken = await getAccessToken();
 
@@ -138,28 +183,68 @@ export const getTimeToBeat = async (gameId) => {
 
 
     const [timeToBeat] = await response.json();
-    return timeToBeat ?? null;
-};
 
-export const getSimilarGames = async (gameId) => {
-    const clientId = process.env.TWITCH_CLIENT_ID;
-    const accessToken = await getAccessToken();
-
-    const response = await fetch(IGDB_GAMES_URL, {
-        method: 'POST',
-        headers: {
-            'Client-ID': clientId,
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'text/plain',
-        },
-        body: `where id = ${gameId}; fields similar_games.id,similar_games.name,similar_games.cover.url,similar_games.first_release_date,similar_games.genres.name,similar_games.platforms.name,similar_games.summary; limit 1;`,
-        signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-        throw new Error(`IGDB similar games request falló con HTTP ${response.status}.`);
+    if (timeToBeat === undefined) {
+        setCachedIgdb(cacheKey, null);
+        return null;
     }
 
-    const [game] = await response.json();
-    return game?.similar_games ?? [];
+    setCachedIgdb(cacheKey, timeToBeat);
+    return timeToBeat;
 };
+
+export const getGamesByIds = async (gameIds) => {
+
+    const GAME_CARD_FIELDS = 'id,name,cover.url,first_release_date,genres.name,platforms.name';
+
+    const flagNotNumber = gameIds.some(id => !Number.isInteger(id) || id <= 0);
+
+    if (flagNotNumber) {
+        throw new Error('Todos los elementos de gameIds deben ser números enteros positivos.');
+    }
+
+    const uniqueIds = [...new Set(gameIds)];
+
+    if (uniqueIds.length === 0) return [];
+
+    const found = new Map();
+    const missing = [];
+
+    uniqueIds.forEach((id) => {
+        const cached = getCachedIgdb(`card:${id}`);
+        if (cached !== undefined) {
+            found.set(id, cached);
+        } else {
+            missing.push(id);
+        }
+    });
+
+    if (missing.length > 0) {
+        const clientId = process.env.TWITCH_CLIENT_ID;
+        const accessToken = await getAccessToken();
+
+        const response = await fetch(IGDB_GAMES_URL, {
+            method: 'POST',
+            headers: {
+                'Client-ID': clientId,
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'text/plain',
+            },
+            body: `where id = (${missing.join(',')}); fields ${GAME_CARD_FIELDS}; limit ${missing.length};`,
+            signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!response.ok) {
+            throw new Error(`IGDB games request falló con HTTP ${response.status}.`);
+        }
+
+        const results = await response.json();
+        results.forEach((game) => {
+            setCachedIgdb(`card:${game.id}`, game);
+            found.set(game.id, game);
+        });
+    }
+
+    return gameIds.map((id) => found.get(id) || null);
+}
+
