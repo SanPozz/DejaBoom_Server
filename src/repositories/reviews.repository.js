@@ -15,12 +15,23 @@ class ReviewsRepository {
     }
 
     async getCommunityStatsByGameId(gameId) {
-        const [reviewsCount, completedCount] = await prisma.$transaction([
-            prisma.reviews.count({ where: { gameId } }),
+        const [aggregate, completedCount] = await prisma.$transaction([
+            prisma.reviews.aggregate({
+                where: { gameId },
+                _count: { _all: true },
+                _avg: { rating: true }
+            }),
             prisma.reviews.count({ where: { gameId, completed: true } })
         ]);
 
-        return { reviewsCount, completedCount };
+        const averageRating = aggregate._avg.rating;
+        const reviewsCount = aggregate._count._all;
+        
+        return { 
+            reviewsCount,
+            completedCount,
+            averageRating: averageRating === null ? null : Number(Number(averageRating).toFixed(1))
+        };
     }
 
     getByReviewId(reviewId, userId) {
@@ -107,6 +118,70 @@ class ReviewsRepository {
         ])
 
         return {reviewsCount, completedCount}
+    }
+
+    async getPopularGameIds({days = 7, limit = 6} = {}) {
+
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        const groupByGame = (where, take) => {
+            return prisma.reviews.groupBy({
+                by: ['gameId'],
+                where,
+                _count: { gameId: true },
+                orderBy: [{ _count: { gameId: 'desc' } }, { gameId: 'desc' }],
+                take
+            });
+        }
+
+        const weeklyPopular = await groupByGame({ createdAt: { gte: since } }, limit);
+
+        const popularIds = weeklyPopular.map(group => group.gameId);
+
+        if (popularIds.length >= limit) return popularIds;
+
+        const allTimePopular = await groupByGame({ gameId: { notIn: popularIds } }, limit - popularIds.length);
+
+        return [...popularIds, ...allTimePopular.map(group => group.gameId)];
+    }
+
+    async getPopularReviews({ days = 7, limit = 3 } = {}) {
+
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        const findPopular = (where, take) => {
+            return prisma.reviews.findMany({
+                where,
+                orderBy: [{ likes: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+                take,
+                select: {
+                    id: true,
+                    gameId: true,
+                    content: true,
+                    rating: true,
+                    likes: true,
+                    createdAt: true,
+                    user: {
+                        select: { nickname: true, profilePicture: true }
+                    },
+                    _count: {
+                        select: { comments: {where: { deletedAt: null } } }
+                    }
+                }
+            })
+        }
+
+        const weeklyPopular = await findPopular({ createdAt: { gte: since } }, limit);
+
+        if (weeklyPopular.length >= limit) return weeklyPopular;
+
+        const allTimePopular = await findPopular(
+            { id: { notIn: weeklyPopular.map(review => review.id) } },
+            limit - weeklyPopular.length
+        );
+
+        return [...weeklyPopular, ...allTimePopular];
+
     }
 
 }

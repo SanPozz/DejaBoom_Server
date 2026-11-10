@@ -1,5 +1,7 @@
 import { HttpError } from '../utils/httperror.util.js';
 
+import { getGamesByIds } from '../services/igdb.service.js'
+
 import ReviewsRepository from "../repositories/reviews.repository.js";
 
 const reviewsRepository = new ReviewsRepository();
@@ -101,6 +103,25 @@ class ReviewsController {
         } catch (error) {
             throw error;
         }
+    }
+
+    static async getPopular(req, res) {
+        
+        const reviews = await reviewsRepository.getPopularReviews();
+
+        const games = await getGamesByIds(reviews.map(review => review.gameId)).catch((error) => {
+            console.error('IGDB games for popular reviews failed:', error)
+        });
+
+        const data = reviews.map(({ _count, rating, ...review }, index) => ({
+            ...review,
+            rating: Number(rating),
+            commentsCount: _count.comments,
+            game: games[index],
+        }));
+
+        res.status(200).json(data);
+
     }
 
 }

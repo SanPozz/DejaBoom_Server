@@ -10,6 +10,8 @@ const router = Router();
 
 router.post('/create', verifyFirebaseToken, loadUser, checkRole('USER'), ReviewsController.create);
 
+router.get('/popular', ReviewsController.getPopular);
+
 router.get('/:reviewId', verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), ReviewsController.getByReviewId);
 
 router.put('/like', verifyFirebaseToken, loadUser, checkRole('USER'), ReviewsController.like);

@@ -1,4 +1,4 @@
-import {searchGames, getGameById, getTimeToBeat, IgdbConfigurationError, listGames } from '../services/igdb.service.js';
+import {searchGames, getGameById, getGamesByIds, getTimeToBeat, IgdbConfigurationError, listGames } from '../services/igdb.service.js';
 import translateToSpanishWithCache, { DeepLConfigurationError } from '../services/deepl.service.js';
 import ReviewsRepository from '../repositories/reviews.repository.js';
 
@@ -143,6 +143,62 @@ class GamesController {
         } catch (error) {
             console.error('Game community stats retrieval failed:', error.message);
             return res.status(500).json({ error: 'No se pudieron obtener los datos de la comunidad del juego.' });
+        }
+    }
+
+    static async getPopular(req, res) {
+        try {
+
+            const popularGameIds = await reviewsRepository.getPopularGameIds();
+            const games = await getGamesByIds(popularGameIds);
+            return res.json(games.filter(Boolean));
+        } catch (error) {
+            console.error('Popular games retrieval failed:', error.message);
+            if (error instanceof IgdbConfigurationError) {
+                return res.status(500).json({ error: 'Las credenciales de IGDB no están configuradas en el servidor.' });
+            }
+            return res.status(500).json({ error: 'No se pudieron obtener los juegos populares.' });
+            
+        }
+    }
+
+    static async getGameOfTheWeek(req, res) {
+        try {
+
+            const [popularGameId] = await reviewsRepository.getPopularGameIds({ days: 7, limit: 1 });
+
+            if (!popularGameId) {
+                return res.status(404).json({ error: 'No se encontró el juego de la semana.' });
+            }
+
+            const [[game], stats] = await Promise.all([
+                getGameById(popularGameId),
+                reviewsRepository.getCommunityStatsByGameId(popularGameId)
+            ])
+
+            if (!game) {
+                return res.status(404).json({ error: 'No se encontró el juego de la semana.' });
+            }
+
+            const summaryEs = game.summary 
+                ? await translateToSpanishWithCache(game.summary, 'ES').catch((error) => {
+                    console.error('Game summary translation failed:', error.message);
+                    return null
+                })
+                : null;
+
+            return res.json({ ...game, summaryEs, stats });
+
+        } catch (error) {
+            
+            console.error('Game of the week retrieval failed:', error.message);
+
+            if (error instanceof IgdbConfigurationError) {
+                return res.status(500).json({ error: 'Las credenciales de IGDB no están configuradas en el servidor.' });
+            }
+
+            return res.status(500).json({ error: 'No se pudo obtener el juego de la semana.' });
+
         }
     }
 
