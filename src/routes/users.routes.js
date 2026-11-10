@@ -10,4 +10,6 @@ router.get("/:nickname/profile", verifyFirebaseToken, loadUser, checkRole(['USER
 
 router.patch("/me", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.updateMe);
 
+router.get("/:nickname/reviews", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.getReviews);
+
 export default router;

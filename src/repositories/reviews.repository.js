@@ -1,5 +1,11 @@
 import prisma from '../database/db.js';
 
+export const REVIEW_ORDER = {
+    recent: [{ createdAt: 'desc' }, {id: 'desc' }],
+    best: [{ rating: 'desc' }, { id: 'desc' }],
+    worst: [{ rating: 'asc' }, { id: 'asc' }]
+}
+
 class ReviewsRepository {
 
     save({ gameId, userId, content, rating, completed }) {
@@ -70,13 +76,13 @@ class ReviewsRepository {
         return prisma.reviews.findUnique({ where: { id: reviewId } });
     }
 
-    getByUserId(userId, {limit = 20, cursor} = {}) {
+    getByUserId(userId, {limit = 20, skip = 0, sort = 'recent'} = {}) {
 
         return prisma.reviews.findMany({
             where: { userId },
-            orderBy: [{createdAt: 'desc'}, { id: 'desc' }],
+            orderBy: REVIEW_ORDER[sort],
             take: limit,
-            ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+            skip,
             select: {
                 id: true,
                 gameId: true,
