@@ -102,10 +102,13 @@ model GameLists {
   userId    Int
   user      Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
+  description   String?
+  isPublic     Boolean         @default(false)
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   items     GameListItems[]
 
+  @@index([isPublic, updatedAt])
   @@index([userId])
 }
 
@@ -113,10 +116,12 @@ model GameListItems {
   gameListId Int
   gameList   GameLists @relation(fields: [gameListId], references: [id], onDelete: Cascade)
   gameId     Int
+  position    Int
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
   @@id([gameListId, gameId])
+  @@unique([gameListId, position])
   @@index([gameId])
 }
 

@@ -10,6 +10,7 @@ import gamesRoutes from '../routes/games.routes.js';
 import commentsRoutes from '../routes/comments.routes.js';
 import usersRoutes from '../routes/users.routes.js';
 import notificationsRoutes from '../routes/notifications.routes.js';
+import listsRoutes from '../routes/lists.routes.js';
 
 const createApp = () => {
   const app = express();
@@ -36,6 +37,7 @@ const createApp = () => {
   app.use('/api/users', usersRoutes);
   app.use('/api', commentsRoutes);
   app.use('/api/notifications', notificationsRoutes);
+  app.use('/api/lists', listsRoutes);
 
   app.use(errorHandler);
 
