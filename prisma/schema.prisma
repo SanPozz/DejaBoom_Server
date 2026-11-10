@@ -42,6 +42,7 @@ model Users {
   commentLikes          CommentLikes[]
   notificationsReceived Notifications[] @relation("NotificationRecipient")
   notificationsSent     Notifications[] @relation("NotificationActor")
+  favoriteGames         FavoriteGames[]
 }
 
 model Comments {
@@ -150,4 +151,15 @@ model Notifications {
   @@index([recipientId, readAt])
   @@index([reviewId])
   @@index([commentId])
+}
+
+model FavoriteGames {
+  userId    Int
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId    Int
+  position  Int
+  createdAt DateTime @default(now())
+
+  @@id([userId, gameId])
+  @@unique([userId, position])
 }

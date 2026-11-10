@@ -7,6 +7,7 @@ import UsersRepository from "../repositories/users.repository.js";
 import { getGamesByIds } from "../services/igdb.service.js";
 
 const PAGE_SIZE = 8;
+const FAVORITES_LIMIT = 4;
 
 const toPublicUser = (user) => ({
     id: user.id,
@@ -49,18 +50,24 @@ class UsersController {
             throw new HttpError(404, "Usuario no encontrado");
         }
 
-        const [stats, reviews] = await Promise.all([
+        const [stats, reviews, favoriteGameIds] = await Promise.all([
             reviewsRepository.getUserStats(user.id),
-            reviewsRepository.getRecentByUserId(user.id)
+            reviewsRepository.getRecentByUserId(user.id),
+            usersRepository.getFavoriteGameIds(user.id)
+
         ]);
 
-        const recentReviews = await withGames(reviews);
+        const [recentReviews, favoriteGames] = await Promise.all([
+            withGames(reviews),
+            getGamesByIds(favoriteGameIds)
+        ]);
 
 
         res.status(200).json({
             user: toPublicUser(user),
             stats,
-            recentReviews
+            recentReviews,
+            favoriteGames: favoriteGames.filter(Boolean)
         });
     }
 
@@ -128,6 +135,40 @@ class UsersController {
         res.status(200).json({
             user: toPublicUser(updatedUser)
         });
+    }
+
+    static async updateFavorites(req, res) {
+
+        const { gameIds } = req.body ?? {};
+
+        if (!Array.isArray(gameIds)) {
+            throw new HttpError(400, "gameIds tiene que ser un array");
+        }
+
+        if (gameIds.length > FAVORITES_LIMIT) {
+            throw new HttpError(400, `No se pueden tener más de ${FAVORITES_LIMIT} juegos favoritos`);
+        }
+
+        if (gameIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+            throw new HttpError(400, "Los IDs de los juegos no son válidos");
+        }
+
+        if (new Set(gameIds).size !== gameIds.length) {
+            throw new HttpError(400, "No se puede repetir un juego en favoritos");
+        }
+
+        const games = await getGamesByIds(gameIds);
+
+        if (games.some(game => game === null)) {
+            throw new HttpError(400, "Algunos de los juegos no existen");
+        }
+
+        await usersRepository.replaceFavoriteGames(req.user.id, gameIds);
+
+        res.status(200).json({
+            favoriteGames: games
+        });
+
     }
 }
 

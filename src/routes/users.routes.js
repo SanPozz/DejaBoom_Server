@@ -9,6 +9,7 @@ const router = Router();
 router.get("/:nickname/profile", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.getProfile);
 
 router.patch("/me", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.updateMe);
+router.patch("/me/favorites", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.updateFavorites);
 
 router.get("/:nickname/reviews", verifyFirebaseToken, loadUser, checkRole(['USER', 'ADMIN']), UsersController.getReviews);
 

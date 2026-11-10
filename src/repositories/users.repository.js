@@ -65,6 +65,35 @@ class UsersRepository {
 
     }
 
+    async getFavoriteGameIds(userId) {
+
+        const favorites = await prisma.favoriteGames.findMany({
+            where: { userId },
+            orderBy: { position: 'asc' },
+            select: { gameId: true }
+        });
+
+        return favorites.map(f => f.gameId);
+
+    }
+
+    replaceFavoriteGames(userId, gameIds) {
+
+        return prisma.$transaction([
+            prisma.favoriteGames.deleteMany({
+                where: { userId }
+            }),
+            prisma.favoriteGames.createMany({
+                data: gameIds.map((gameId, position) => ({
+                    userId,
+                    gameId,
+                    position
+                }))
+            })
+        ])
+
+    }
+
 }
 
 export default UsersRepository;
