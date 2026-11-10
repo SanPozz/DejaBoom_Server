@@ -1,129 +1,145 @@
 import { HttpError } from '../utils/httperror.util.js';
 
-import { getGamesByIds } from '../services/igdb.service.js'
-
-import ReviewsRepository from "../repositories/reviews.repository.js";
+import ReviewsRepository from '../repositories/reviews.repository.js';
+import NotificationsService from '../services/notifications.service.js';
+import { getGamesByIds } from '../services/igdb.service.js';
 
 const reviewsRepository = new ReviewsRepository();
 
 class ReviewsController {
+  static async create(req, res) {
+    const { gameId, content, rating, completed } = req.body;
+    const userId = req.user.id;
+    const ratingValue = Number(rating);
 
-    static async create(req, res) {
-        const { gameId, content, rating, completed } = req.body;
-        const userId = req.user.id;
-        const ratingValue = Number(rating);
-
-        if (!Number.isInteger(Number(gameId))) {
-            throw new HttpError(400, 'gameId inválido');
-        }
-
-        if (!content || typeof content !== 'string') {
-            throw new HttpError(400, 'content inválido');
-        }
-
-        if (!Number.isInteger(ratingValue * 2) || ratingValue < 0.5 || ratingValue > 5) {
-            throw new HttpError(400, 'rating inválido');
-        }
-
-        if (typeof completed !== 'boolean') {
-            throw new HttpError(400, 'completed inválido');
-        }
-
-        try {
-            const review = await reviewsRepository.save({ gameId: Number(gameId), userId, content, rating: ratingValue, completed });
-            return res.status(201).json(review);
-        } catch (error) {
-            if (error.code === 'P2002') {
-                throw new HttpError(409, 'Ya reseñaste este juego');
-            }
-            throw error;
-        }
-
+    if (!Number.isInteger(Number(gameId))) {
+      throw new HttpError(400, 'gameId inválido');
     }
 
-    static async getByReviewId(req, res) {
-        const { reviewId } = req.params;
-        const user = req.user;
-
-        if (!Number.isInteger(Number(reviewId))) {
-            throw new HttpError(400, 'reviewId inválido');
-        }
-
-        try {
-            const review = await reviewsRepository.getByReviewId(Number(reviewId), user.id);
-
-            if (!review) {
-                throw new HttpError(404, 'Reseña no encontrada');
-            }
-
-            const { likedBy, ...reviewData } = review;
-
-            res.status(200).json({ ...reviewData, likedByMe: likedBy.length > 0 });
-        } catch (error) {
-            
-            throw error;
-        }
+    if (!content || typeof content !== 'string') {
+      throw new HttpError(400, 'content inválido');
     }
 
-    static async like(req, res) {
-        const { reviewId } = req.body;
-
-        if (!Number.isInteger(Number(reviewId))) {
-            throw new HttpError(400, 'reviewId inválido');
-        }
-
-        try {
-            const review = await reviewsRepository.like(Number(reviewId), req.user.id);
-
-            if (!review) {
-                throw new HttpError(404, 'Reseña no encontrada');
-            }
-
-            res.status(200).json(review);
-        } catch (error) {
-            throw error;
-        }
-    }
-    
-    static async unlike(req, res) {
-        const { reviewId } = req.body;
-
-        if (!Number.isInteger(Number(reviewId))) {
-            throw new HttpError(400, 'reviewId inválido');
-        }
-
-        try {
-            const review = await reviewsRepository.unlike(Number(reviewId), req.user.id);
-
-            if (!review) {
-                throw new HttpError(404, 'Reseña no encontrada');
-            }
-
-            res.status(200).json(review);
-        } catch (error) {
-            throw error;
-        }
+    if (
+      !Number.isInteger(ratingValue * 2) ||
+      ratingValue < 0.5 ||
+      ratingValue > 5
+    ) {
+      throw new HttpError(400, 'rating inválido');
     }
 
-    static async getPopular(req, res) {
-        
-        const reviews = await reviewsRepository.getPopularReviews();
-
-        const games = await getGamesByIds(reviews.map(review => review.gameId)).catch((error) => {
-            console.error('IGDB games for popular reviews failed:', error)
-        });
-
-        const data = reviews.map(({ _count, rating, ...review }, index) => ({
-            ...review,
-            rating: Number(rating),
-            commentsCount: _count.comments,
-            game: games[index],
-        }));
-
-        res.status(200).json(data);
-
+    if (typeof completed !== 'boolean') {
+      throw new HttpError(400, 'completed inválido');
     }
 
+    try {
+      const review = await reviewsRepository.save({
+        gameId: Number(gameId),
+        userId,
+        content,
+        rating: ratingValue,
+        completed,
+      });
+      return res.status(201).json(review);
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new HttpError(409, 'Ya reseñaste este juego');
+      }
+      throw error;
+    }
+  }
+
+  static async getByReviewId(req, res) {
+    const { reviewId } = req.params;
+    const user = req.user;
+
+    if (!Number.isInteger(Number(reviewId))) {
+      throw new HttpError(400, 'reviewId inválido');
+    }
+
+    try {
+      const review = await reviewsRepository.getByReviewId(
+        Number(reviewId),
+        user.id,
+      );
+
+      if (!review) {
+        throw new HttpError(404, 'Reseña no encontrada');
+      }
+
+      const { likedBy, ...reviewData } = review;
+
+      res.status(200).json({ ...reviewData, likedByMe: likedBy.length > 0 });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async like(req, res) {
+    const { reviewId } = req.body;
+
+    if (!Number.isInteger(Number(reviewId))) {
+      throw new HttpError(400, 'reviewId inválido');
+    }
+    const result = await reviewsRepository.like(Number(reviewId), req.user.id);
+
+    if (!result) {
+      throw new HttpError(404, 'Reseña no encontrada');
+    }
+
+    if (result.created) {
+      await NotificationsService.create({
+        recipientId: result.review.userId,
+        actorId: req.user.id,
+        type: 'REVIEW_LIKE',
+        reviewId: result.review.id,
+      });
+    }
+
+    return res.status(200).json(result.review);
+  }
+
+  static async unlike(req, res) {
+    const { reviewId } = req.body;
+
+    if (!Number.isInteger(Number(reviewId))) {
+      throw new HttpError(400, 'reviewId inválido');
+    }
+
+    try {
+      const review = await reviewsRepository.unlike(
+        Number(reviewId),
+        req.user.id,
+      );
+
+      if (!review) {
+        throw new HttpError(404, 'Reseña no encontrada');
+      }
+
+      res.status(200).json(review);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getPopular(req, res) {
+    const reviews = await reviewsRepository.getPopularReviews();
+
+    // Si IGDB falla, las reseñas se devuelven igual, sin los datos del juego
+    const games = await getGamesByIds(reviews.map((review) => review.gameId)).catch((error) => {
+      console.error('IGDB games for popular reviews failed:', error.message);
+      return reviews.map(() => null);
+    });
+
+    const data = reviews.map(({ _count, rating, ...review }, index) => ({
+      ...review,
+      rating: Number(rating),
+      commentsCount: _count.comments,
+      game: games[index],
+    }));
+
+    res.status(200).json(data);
+  }
 }
 
 export default ReviewsController;
