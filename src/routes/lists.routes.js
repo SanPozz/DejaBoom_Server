@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import ListController from "../controllers/lists.controller";
+import ListController from "../controllers/lists.controller.js";
 
 import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.middlewaare.js";
 import loadUser from "../middlewares/loadUser.middleware.js";
