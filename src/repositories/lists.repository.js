@@ -8,7 +8,7 @@ const listSummarySelect = {
     updatedAt: true,
     createdAt: true,
     user: { select: { nickname: true, profilePicture: true }},
-    _count: { select: { items: true } },
+    _count: { select: { items: true, savedBy: true } },
     items: {
         orderBy: { position: 'asc' },
         take: 4,
@@ -49,6 +49,7 @@ class ListsRepository {
                 name: true,
                 description: true,
                 isPublic: true,
+                _count: { select: { savedBy: true } },
                 updatedAt: true,
                 createdAt: true,
                 user: {
@@ -99,6 +100,43 @@ class ListsRepository {
             })
         ])
     }
+
+    async isSavedByUser(listId, userId) {
+        return prisma.savedLists.findUnique({
+            where: { userId_gameListId: { userId, gameListId: listId } }
+        }).then(saved => saved !== null)
+    }
+
+    save(listId, userId) {
+        return prisma.savedLists.createMany({
+            data: {userId, gameListId: listId},
+            skipDuplicates: true,
+        });
+    }
+
+    unsave(listId, userId) {
+        return prisma.savedLists.deleteMany({
+            where: { userId, gameListId: listId },
+        });
+    }
+
+    findSavedByUser(userId) {
+        return prisma.gameLists.findMany({
+            where: { isPublic: true, savedBy: { some: { userId } } },
+            orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+            select: listSummarySelect,
+        });
+    }
+
+    findPopular({ limit = 3 } = {}) {
+        return prisma.gameLists.findMany({
+            where: { isPublic: true, items: { some: {} } },
+            orderBy: [{ savedBy: { _count: 'desc' } }, { updatedAt: 'desc' }, { id: 'desc' }],
+            take: limit,
+            select: listSummarySelect,
+        })
+    }
+
 }
 
 export default ListsRepository;

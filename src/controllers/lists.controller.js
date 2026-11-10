@@ -27,6 +27,7 @@ const toListSummaries = async (lists) => {
         ...list,
         title: name,
         gamesCount: _count.items,
+        savedCount: _count.savedBy,
         covers: items.map(item => gamesById.get(item.gameId)).filter(Boolean)
     }));
 
@@ -113,17 +114,22 @@ class ListController {
             throw new HttpError(404, "Lista no encontrada");
         }
 
-        const games = await getGamesByIds(list.items.map(item => item.gameId)).catch(err => {
-            console.error("Error buscando juegos para la lista:", err.message);
-            return list.items.map(() => null);
-        });
+        const [games, savedByMe] = await Promise.all([
+            getGamesByIds(list.items.map(item => item.gameId)).catch(err => {
+                console.error("Error buscando juegos para la lista:", err.message);
+                return list.items.map(() => null);
+            }),
+            listsRepository.isSavedByUser(listId, req.user.id),
+        ]);
 
-        const { name, items, userId, ...data } = list;
+        const { name, items, userId, _count, ...data } = list;
 
         res.status(200).json({
             ...data,
             title: name,
             isOwner: userId === req.user.id,
+            savedCount: _count.savedBy,
+            savedByMe,
             games: games.filter(Boolean),
         });
     }
@@ -173,9 +179,55 @@ class ListController {
         res.status(200).json({
             id: listId,
         });
-
     }
 
+    static async save(req, res) {
+        const listId = parseListId(req.params.id);
+        const list = await listsRepository.findById(listId);
+
+        if (!list || !list.isPublic){
+            throw new HttpError(404, "Lista no encontrada");
+        }
+
+        if (list.userId === req.user.id) {
+            throw new HttpError(400, "No puedes guardar tu propia lista");
+        }
+
+        await listsRepository.save(listId, req.user.id);
+
+        res.status(200).json({
+            id: listId,
+            savedByMe: true
+        });
+    }
+
+    static async unsave(req, res) {
+        const listId = parseListId(req.params.id);
+        const list = await listsRepository.findById(listId);
+
+        if (!list || !list.isPublic){
+            throw new HttpError(404, "Lista no encontrada");
+        }
+
+        await listsRepository.unsave(listId, req.user.id);
+
+        res.status(200).json({
+            id: listId,
+            savedByMe: false
+        });
+    }
+
+    static async getSaved(req, res) {
+        const lists = await listsRepository.findSavedByUser(req.user.id);
+
+        res.status(200).json(await toListSummaries(lists));
+    }
+
+    static async getPopular(req, res) {
+        const lists = await listsRepository.findPopular();
+
+        res.status(200).json(await toListSummaries(lists));
+    }
 }
 
 export default ListController;

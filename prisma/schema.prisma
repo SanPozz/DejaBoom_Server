@@ -43,6 +43,7 @@ model Users {
   notificationsReceived Notifications[] @relation("NotificationRecipient")
   notificationsSent     Notifications[] @relation("NotificationActor")
   favoriteGames         FavoriteGames[]
+  savedLists            SavedLists[]
 }
 
 model Comments {
@@ -107,6 +108,7 @@ model GameLists {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   items     GameListItems[]
+  savedBy               SavedLists[]
 
   @@index([isPublic, updatedAt])
   @@index([userId])
@@ -167,4 +169,15 @@ model FavoriteGames {
 
   @@id([userId, gameId])
   @@unique([userId, position])
+}
+
+model SavedLists {
+  userId    Int
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameListId Int
+  gameList   GameLists @relation(fields: [gameListId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, gameListId])
+  @@index([gameListId])
 }
